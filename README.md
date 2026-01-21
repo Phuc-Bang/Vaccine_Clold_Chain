@@ -152,7 +152,15 @@ cd infra/docker
 docker-compose up -d
 ```
 
-### 3️⃣ Nạp Firmware
+### 3️⃣ Chạy Frontend (Next.js)
+
+```bash
+cd frontend
+npm run dev
+# Dashboard: http://localhost:3000
+```
+
+### 4️⃣ Nạp Firmware
 
 ```bash
 # Gateway

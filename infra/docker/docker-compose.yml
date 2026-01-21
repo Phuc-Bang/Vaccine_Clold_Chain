@@ -1,38 +1,100 @@
-version: '3.8'
+version: "3.8"
 
 services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: vaccine_db
+    environment:
+      POSTGRES_USER: vaccine_user
+      POSTGRES_PASSWORD: vaccine_password
+      POSTGRES_DB: vaccine_coldchain
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vaccine_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vaccine_net
+
+  # MQTT Broker (Mosquitto)
   mqtt:
     image: eclipse-mosquitto:latest
     container_name: vaccine_mqtt
     ports:
-      - "1883:1883"
-      - "9001:9001"
+      - "1883:1883" # MQTT
+      - "9001:9001" # WebSocket
     volumes:
-      - ./infrastructure/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./infra/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
+    healthcheck:
+      test:
+        ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "test", "-m", "test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - vaccine_net
+    depends_on:
+      - db
 
+  # Backend API (Python)
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: vaccine_backend
     ports:
       - "8000:8000"
+    environment:
+      PYTHONUNBUFFERED: 1
+      DATABASE_URL: postgresql://vaccine_user:vaccine_password@db:5432/vaccine_coldchain
+      MQTT_BROKER: mqtt
+      MQTT_PORT: 1883
+      FLASK_ENV: development
+      DEBUG: 1
     volumes:
       - ./backend:/app
-    environment:
-      - MQTT_BROKER=mqtt
-      - MQTT_PORT=1883
     depends_on:
-      - mqtt
+      db:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
     networks:
       - vaccine_net
+    restart: unless-stopped
+
+  # Frontend (Node.js) - Optional for now
+  # Uncomment when frontend is ready
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: vaccine_frontend
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     REACT_APP_API_URL: http://localhost:8000
+  #     REACT_APP_MQTT_URL: ws://localhost:9001
+  #   volumes:
+  #     - ./frontend:/app
+  #     - /app/node_modules
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - vaccine_net
+  #   restart: unless-stopped
 
 networks:
   vaccine_net:
     driver: bridge
 
 volumes:
+  postgres_data:
   mosquitto_data:
   mosquitto_log:
