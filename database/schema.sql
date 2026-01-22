@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS measurements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  node_id TEXT NOT NULL,
+  sensor_value REAL NOT NULL,
+  timestamp TEXT NOT NULL
+);
