@@ -1,313 +1,308 @@
-<p align="center">
-  <img src="https://img.icons8.com/fluency/96/000000/temperature-inside.png" alt="Vaccine Cold Chain Logo"/>
-</p>
+# ColdChain Dashboard – Vaccine Cold Room SCADA
 
-<h1 align="center">❄️ Hệ Thống Giám Sát Kho Lạnh Vắc-xin</h1>
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg)
 
-<p align="center">
-  <strong>Hệ thống IoT giám sát nhiệt độ kho lạnh vắc-xin theo thời gian thực</strong>
-</p>
+**Web dashboard giám sát & điều khiển kho lạnh vắc-xin** dựa trên FastAPI, MQTT, Chart.js với khả năng:
 
-<p align="center">
-  <a href="#tính-năng"><img src="https://img.shields.io/badge/ESP32-Powered-blue?style=for-the-badge&logo=espressif" alt="ESP32"/></a>
-  <a href="#tính-năng"><img src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi" alt="FastAPI"/></a>
-  <a href="#tính-năng"><img src="https://img.shields.io/badge/MQTT-Protocol-purple?style=for-the-badge&logo=eclipse-mosquitto" alt="MQTT"/></a>
-  <a href="#tính-năng"><img src="https://img.shields.io/badge/ESP--NOW-Mesh-orange?style=for-the-badge" alt="ESP-NOW"/></a>
-</p>
-
-<p align="center">
-  <a href="#bắt-đầu-nhanh">Bắt Đầu</a> •
-  <a href="#kiến-trúc">Kiến Trúc</a> •
-  <a href="#tính-năng">Tính Năng</a> •
-  <a href="#phần-cứng">Phần Cứng</a> •
-  <a href="#api">API</a> •
-  <a href="#dashboard-scada">Dashboard SCADA</a> •
-  <a href="#đóng-góp">Đóng Góp</a>
-</p>
+- ✅ Giám sát nhiệt độ realtime với biểu đồ
+- ✅ Điều khiển thiết bị từ xa (ON/OFF máy lạnh)
+- ✅ Cảnh báo ngưỡng nhiệt độ tự động
+- ✅ Phát hiện mất tín hiệu (dead link detection)
+- ✅ Lọc nhiễu dữ liệu (median filter)
+- ✅ Đồng bộ trạng thái giữa nhiều tab
 
 ---
 
-## 🎯 Giới Thiệu
-
-Hệ thống IoT hoàn chỉnh để giám sát chuỗi lạnh bảo quản vắc-xin. Đảm bảo vắc-xin được lưu trữ ở nhiệt độ an toàn (2-8°C) với cảnh báo thời gian thực, lưu trữ offline và khôi phục sự cố tự động.
-
-<p align="center">
-  <img src="https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif" width="300" alt="Temperature Monitor"/>
-</p>
-
----
-
-## ✨ Tính Năng
-
-<table>
-<tr>
-<td width="50%">
-
-### 🌡️ Giám Sát Thời Gian Thực
-- Theo dõi nhiệt độ & độ ẩm liên tục
-- Cập nhật WebSocket tức thì
-- Biểu đồ lịch sử trực quan
-
-### 🚨 Cảnh Báo Thông Minh
-- Báo động ngay khi vượt ngưỡng
-- Đèn LED chỉ thị tại node cảm biến
-- Xử lý cảnh báo tại biên (Edge)
-
-</td>
-<td width="50%">
-
-### 📡 Mạng Mesh Không Dây
-- Giao thức ESP-NOW (tầm xa 250m)
-- Hỗ trợ nhiều node cảm biến
-- Tiêu thụ năng lượng thấp
-
-### 🛡️ Khôi Phục Sự Cố
-- Lưu đệm dữ liệu khi mất mạng
-- Tự động đồng bộ khi có kết nối
-- Đảm bảo không mất dữ liệu
-
-</td>
-</tr>
-</table>
-
----
-
-## 🏗️ Kiến Trúc
-
-```mermaid
-graph LR
-    subgraph "🌡️ Tầng Cảm Biến"
-        N1[Node 1]
-        N2[Node 2]
-        N3[Node N]
-    end
-    
-    subgraph "📡 Tầng Biên"
-        GW[Gateway]
-        BUF[(Bộ Đệm)]
-    end
-    
-    subgraph "☁️ Tầng Server"
-        MQTT[MQTT Broker]
-        API[FastAPI]
-        DB[(SQLite)]
-    end
-    
-    subgraph "👤 Tầng Người Dùng"
-        DASH[Dashboard]
-    end
-    
-    N1 & N2 & N3 -->|ESP-NOW| GW
-    GW -->|MQTT| MQTT
-    GW -.->|Offline| BUF
-    MQTT <--> API <--> DB
-    API -->|WebSocket| DASH
-```
-
-| Tầng | Công Nghệ | Chức Năng |
-|------|-----------|-----------|
-| **Cảm Biến** | ESP32 + DHT11 | Thu thập nhiệt độ |
-| **Biên** | ESP32 Gateway | Tổng hợp & lưu đệm dữ liệu |
-| **Server** | FastAPI + MQTT | Xử lý & lưu trữ |
-| **Người Dùng** | Web Dashboard | Hiển thị & điều khiển |
-
----
-
-## 📁 Cấu Trúc Dự Án
+## 🏗️ Kiến trúc hệ thống (Architecture)
 
 ```
-VaccineColdChain/
-├── 🔧 firmware/        # Code ESP32 (Node + Gateway)
-├── ⚡ backend/         # FastAPI server
-├── 🎨 frontend/        # Dashboard web
-├── 🐳 infra/           # Docker, triển khai
-├── 📚 docs/            # Tài liệu
-├── 🔌 hardware/        # Sơ đồ mạch, đấu nối
-└── 🧪 tests/           # Test E2E & tải
+┌─────────────┐      MQTT      ┌──────────────┐      HTTP      ┌──────────────┐
+│  Simulator  │ ─────────────> │ MQTT Worker  │ ─────────────> │   Backend    │
+│  (ESP32)    │                │              │                │   FastAPI    │
+└─────────────┘                └──────────────┘                └──────────────┘
+                                       │                               │
+                                       │                               │
+                                       ▼                               ▼
+                                ┌──────────────┐                ┌──────────────┐
+                                │   Database   │ <───────────── │   Frontend   │
+                                │   SQLite     │      HTTP      │   HTML/JS    │
+                                └──────────────┘                └──────────────┘
+```
+
+### Luồng dữ liệu:
+
+1. **Simulator/ESP32** → Gửi dữ liệu nhiệt độ qua MQTT topic `coldchain/sensor/NODE_01/data`
+2. **MQTT Worker** → Subscribe MQTT, lưu vào SQLite, cập nhật status qua Backend API
+3. **Frontend** → Polling Backend API mỗi 3 giây để lấy dữ liệu mới và vẽ chart
+4. **Điều khiển**: Frontend → Backend → MQTT → Simulator → Phản hồi status → Worker → Backend → Frontend
+
+---
+
+## 📁 Cấu trúc thư mục
+
+```
+coldchain-dashboard/
+├── backend/               # FastAPI backend
+│   └── main.py           # API endpoints
+├── worker/               # MQTT worker
+│   └── mqtt_worker.py    # Subscribe MQTT, ghi DB
+├── frontend/             # Web dashboard
+│   ├── index.html
+│   ├── css/
+│   │   └── style.css
+│   └── js/
+│       └── main.js
+├── simulator/            # Giả lập thiết bị IoT
+│   └── vaccine_sim.py
+├── database/             # SQLite database
+│   ├── schema.sql
+│   └── iot_industrial.db
+├── docs/                 # Documentation
+├── requirements.txt      # Python dependencies
+└── README.md
 ```
 
 ---
 
-## 🚀 Bắt Đầu Nhanh
+## 🚀 Cài đặt & Chạy
 
-### Yêu Cầu
-
-- **Python 3.8+**
-- **PlatformIO** (extension VS Code)
-- **Docker** (tuỳ chọn)
-
-### 1️⃣ Clone & Cài Đặt
+### Bước 1: Cài đặt dependencies
 
 ```bash
-git clone https://github.com/your-username/VaccineColdChain.git
-cd VaccineColdChain
+# Clone repo
+git clone <your-repo-url>
+cd coldchain-dashboard
 
-# Sao chép cấu hình môi trường
-cp .env.example .env
+# Tạo virtual environment (khuyến nghị)
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# hoặc
+venv\Scripts\activate     # Windows
+
+# Cài đặt packages
+pip install -r requirements.txt
 ```
 
-### 2️⃣ Chạy Backend (Docker)
+### Bước 2: Khởi tạo database
 
 ```bash
-cd infra/docker
-docker-compose up -d
+cd database
+sqlite3 iot_industrial.db < schema.sql
+cd ..
 ```
 
-### 3️⃣ Chạy Frontend (Next.js)
+### Bước 3: Chạy MQTT Broker
+
+**Option A: Sử dụng Mosquitto (local)**
+
+```bash
+# Cài đặt Mosquitto
+sudo apt-get install mosquitto mosquitto-clients  # Ubuntu/Debian
+brew install mosquitto                            # macOS
+
+# Chạy broker
+mosquitto -v
+```
+
+**Option B: Sử dụng public broker**
+
+Thay đổi `MQTT_BROKER` trong code thành `broker.hivemq.com` hoặc `test.mosquitto.org`
+
+### Bước 4: Chạy các service
+
+**Terminal 1: Backend**
+
+```bash
+cd backend
+python main.py
+
+# Hoặc dùng uvicorn trực tiếp
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Terminal 2: MQTT Worker**
+
+```bash
+cd worker
+python mqtt_worker.py
+```
+
+**Terminal 3: Simulator (giả lập thiết bị)**
+
+```bash
+cd simulator
+python vaccine_sim.py
+```
+
+**Terminal 4: Frontend**
 
 ```bash
 cd frontend
-npm run dev
-# Dashboard: http://localhost:3000
-```
 
-### 4️⃣ Nạp Firmware
+# Cách 1: Dùng Live Server (VS Code extension)
+# Click chuột phải vào index.html > Open with Live Server
 
-```bash
-# Gateway
-cd firmware/gateway
-pio run --target upload
-
-# Node
-cd ../node
-pio run --target upload
-```
-
-### 4️⃣ Mở Dashboard
-
-```
-http://localhost:8000
+# Cách 2: Dùng Python HTTP server
+python -m http.server 8080
+# Truy cập: http://localhost:8080
 ```
 
 ---
 
-## 🔌 Phần Cứng
+## 🎯 Sử dụng
 
-### Danh Sách Linh Kiện
+### Dashboard Features:
 
-| Linh Kiện | Số Lượng | Giá Ước Tính |
-|-----------|----------|--------------|
-| ESP32 DevKit V1 | 2+ | 100-150k/cái |
-| Cảm biến DHT11 | 1+ | 20-40k/cái |
-| LED (Đỏ/Xanh/Vàng) | 3+ | 1k/cái |
-| Breadboard & dây nối | 1 bộ | 50-80k |
+1. **KPI Cards**: Hiển thị nhiệt độ hiện tại, trạng thái máy lạnh, thời gian cập nhật
+2. **Biểu đồ lịch sử**: 20 mẫu gần nhất với các đường ngưỡng
+3. **Điều khiển**: Bật/tắt máy lạnh bằng nút ON/OFF
+4. **Cảnh báo thông minh**:
+   - 🟢 Xanh (2-8°C): An toàn
+   - 🟡 Vàng (8-10°C): Cảnh báo
+   - 🔴 Đỏ + nhấp nháy (>10°C): Nguy hiểm
+5. **Dead Link Detection**: Cảnh báo khi mất tín hiệu >10 giây
 
-### Sơ Đồ Đấu Nối
+### MQTT Topics:
 
-| Chân | GPIO | Chức Năng |
-|------|------|-----------|
-| DHT Data | GPIO4 | Cảm biến nhiệt độ |
-| LED Báo động | GPIO25 | Cảnh báo nhiệt độ |
-| LED Làm lạnh | GPIO26 | Trạng thái làm lạnh |
-| LED Trạng thái | GPIO27 | Trạng thái hệ thống |
-
-📄 [Hướng Dẫn Đấu Nối Chi Tiết](hardware/wiring/wiring-diagram.md)
+- `coldchain/sensor/NODE_01/data` - Dữ liệu nhiệt độ
+- `coldchain/device/NODE_01/cmd` - Lệnh điều khiển
+- `coldchain/device/NODE_01/stat` - Trạng thái thiết bị
 
 ---
 
-## 📡 Giao Thức MQTT
+## 🔧 Tùy chỉnh
 
-| Topic | Hướng | Mô Tả |
-|-------|-------|-------|
-| `vaccine/gateway/{id}/telemetry` | Gateway → Server | Dữ liệu cảm biến |
-| `vaccine/gateway/{id}/batch` | Gateway → Server | Đồng bộ dữ liệu đệm |
-| `vaccine/gateway/{id}/command` | Server → Gateway | Lệnh điều khiển |
+### Thay đổi Device ID:
+
+File cần sửa:
+
+- `backend/main.py` → `device_states`
+- `worker/mqtt_worker.py` → `TOPIC_DATA`, `TOPIC_STATUS`
+- `simulator/vaccine_sim.py` → `DEVICE_ID`
+- `frontend/js/main.js` → `NODE_ID`
+
+### Thay đổi ngưỡng nhiệt độ:
+
+File `frontend/js/main.js`:
+
+```javascript
+const TEMP_THRESHOLDS = {
+  NORMAL_MIN: 2, // Sửa ở đây
+  NORMAL_MAX: 8, // Sửa ở đây
+  WARN_MAX: 10, // Sửa ở đây
+};
+```
+
+### Kết nối ESP32 thật:
+
+Thay simulator bằng code Arduino/ESP32:
+
+```cpp
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <DHT.h>
+
+// Config
+#define MQTT_BROKER "your-broker-ip"
+#define TOPIC_DATA "coldchain/sensor/NODE_01/data"
+
+// Gửi dữ liệu
+String payload = "{\"temperature\":" + String(temp) + "}";
+client.publish(TOPIC_DATA, payload.c_str());
+```
+
+---
+
+## 📸 Screenshot
+
+![Dashboard Screenshot](docs/dashboard-screenshot.png)
+
+_(Thêm screenshot thật của bạn vào thư mục `docs/`)_
+
+---
+
+## 🛠️ Tech Stack
+
+- **Backend**: FastAPI, Python 3.8+
+- **Database**: SQLite
+- **MQTT**: Paho MQTT
+- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
+- **Chart**: Chart.js 4.4
+- **UI**: Bootstrap 5, Font Awesome
+- **Notifications**: Toastify
 
 ---
 
 ## 📊 API Endpoints
 
-| Phương Thức | Endpoint | Mô Tả |
-|-------------|----------|-------|
-| `GET` | `/api/telemetry` | Lấy dữ liệu nhiệt độ |
-| `GET` | `/api/alerts` | Lấy cảnh báo đang hoạt động |
-| `POST` | `/api/command` | Gửi lệnh điều khiển |
-| `WS` | `/ws` | WebSocket thời gian thực |
-
-📄 [Tài Liệu API Đầy Đủ](docs/api/)
-
----
-
-## 📌 Dashboard SCADA
-
-### ColdChain Dashboard – Vaccine Cold Room SCADA
-
-Web dashboard giám sát và điều khiển kho lạnh vắc-xin dựa trên FastAPI, MQTT, Chart.js.
-
-**Luồng dữ liệu**: Frontend (Chart.js, polling) ↔ Backend (FastAPI, SQLite) ↔ MQTT Broker ↔ Simulator/ESP32.
-Worker lắng nghe MQTT để ghi DB và cập nhật trạng thái thiết bị.
-
-### Cách chạy nhanh (Dashboard)
-
-```bash
-pip install -r requirements.txt
-
-# 1. MQTT broker (ví dụ: Mosquitto)
-# 2. Backend
-uvicorn backend.main:app --reload
-
-# 3. Worker
-python worker/mqtt_worker.py
-
-# 4. Simulator
-python simulator/vaccine_sim.py
-```
-
-Mở `frontend/index.html` bằng Live Server để tránh lỗi CORS.
-
-### Config cần tùy chỉnh
-
-- Device ID: `NODE_01`
-- MQTT topic base: `coldchain/device`
-- DB path: `database/iot_industrial.db`
+| Method | Endpoint                     | Mô tả                    |
+| ------ | ---------------------------- | ------------------------ |
+| GET    | `/api/v1/history/{node_id}`  | Lấy lịch sử nhiệt độ     |
+| POST   | `/api/v1/ingest`             | Nhận dữ liệu từ thiết bị |
+| POST   | `/api/v1/control/device`     | Gửi lệnh điều khiển      |
+| GET    | `/api/v1/device/{id}/status` | Lấy trạng thái thiết bị  |
+| POST   | `/api/v1/device/{id}/status` | Cập nhật trạng thái      |
 
 ---
 
-## 🧪 Kiểm Thử
+## 🐛 Troubleshooting
 
-```bash
-# Chạy test E2E
-cd tests
-pytest e2e/ -v
+**Lỗi: "Connection refused" khi chạy worker**
 
-# Test tải
-locust -f load/locustfile.py
-```
+- Kiểm tra MQTT broker đã chạy chưa
+- Kiểm tra địa chỉ IP/port trong config
 
----
+**Frontend không hiển thị dữ liệu**
 
-## 🤝 Đóng Góp
+- Kiểm tra CORS trong backend
+- Kiểm tra backend đã chạy và truy cập được qua `http://localhost:8000`
+- Mở Developer Console (F12) để xem lỗi
 
-Chúng tôi hoan nghênh mọi đóng góp! Vui lòng đọc [Hướng Dẫn Đóng Góp](CONTRIBUTING.md) trước.
+**Chart không cập nhật**
 
-1. Fork repository
-2. Tạo nhánh tính năng (`git checkout -b feature/tinh-nang-moi`)
-3. Commit thay đổi (`git commit -m 'Thêm tính năng mới'`)
-4. Push lên nhánh (`git push origin feature/tinh-nang-moi`)
-5. Mở Pull Request
+- Kiểm tra simulator đang gửi dữ liệu
+- Kiểm tra worker đang ghi vào database
+- Kiểm tra đường dẫn database trong backend
 
 ---
 
-## 📝 Giấy Phép
+## 📝 TODO / Future Improvements
 
-Dự án được phân phối theo giấy phép MIT - xem file [LICENSE](LICENSE) để biết chi tiết.
+- [ ] Thêm authentication (JWT)
+- [ ] Chuyển sang PostgreSQL/TimescaleDB cho production
+- [ ] Thêm push notification (Email/Telegram) khi nhiệt độ vượt ngưỡng
+- [ ] Hỗ trợ nhiều kho lạnh (multi-node)
+- [ ] Export báo cáo PDF
+- [ ] Mobile responsive cải thiện
+- [ ] WebSocket thay vì polling
+- [ ] Docker containerization
 
 ---
 
-## 🙏 Cảm Ơn
+## 📄 License
 
-- [Espressif Systems](https://www.espressif.com/) cho ESP32
-- [FastAPI](https://fastapi.tiangolo.com/) cho framework tuyệt vời
-- [Eclipse Mosquitto](https://mosquitto.org/) cho MQTT broker
+MIT License - Sử dụng tự do cho mục đích học tập và thương mại.
 
 ---
 
-<p align="center">
-  <strong>Được phát triển với ❤️ bởi IoT Dev Team</strong>
-</p>
+## 👨‍💻 Author
 
-<p align="center">
-  <a href="https://github.com/your-username/VaccineColdChain">
-    <img src="https://img.shields.io/github/stars/your-username/VaccineColdChain?style=social" alt="GitHub Stars"/>
-  </a>
-</p>
+Được phát triển bởi [Phuc Bang]
+
+📧 Email: nguyenphucbang65@gmail.com
+🔗 GitHub: https://github.com/Phuc-Bang
+
+---
+
+## 🙏 Acknowledgments
+
+- Chart.js team
+- FastAPI team
+- Bootstrap team
+- Paho MQTT project
+
+---
+
+**⭐ Nếu project hữu ích, hãy cho một star nhé!**
